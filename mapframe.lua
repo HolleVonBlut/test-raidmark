@@ -103,6 +103,9 @@ MF.contentFrame = contentFrame
 
 -- Click en el mapa para colocar el icono seleccionado
 contentFrame:SetScript("OnMouseDown", function()
+    -- SEGURO: Prioridad absoluta al puntero. Si ALT está pulsado, no colocar icono.
+    if IsAltKeyDown() then return end
+    
     if arg1 ~= "LeftButton" then return end
     if not RM.Permissions.CanPlace() then return end
     if not MF.selectedIconType then return end
@@ -110,14 +113,14 @@ contentFrame:SetScript("OnMouseDown", function()
     local mLeft = contentFrame:GetLeft()
     local mTop  = contentFrame:GetTop()
     local mW    = contentFrame:GetWidth()
-    local mH    = contentFrame:GetHeight()
+local mH    = contentFrame:GetHeight()
     local cx, cy = GetCursorPosition()
-
-    -- Escala de UI
-    local scale = UIParent:GetScale()
+    
+    -- NUEVO: Lee la escala real y efectiva del mapa, no solo la de la interfaz global
+    local scale = contentFrame:GetEffectiveScale() 
+    
     cx = cx / scale
     cy = cy / scale
-
     local nx = (cx - mLeft) / mW
     local ny = (mTop - cy)  / mH
 
@@ -136,6 +139,9 @@ end)
 
 -- Pausar puntero cuando se presiona cualquier boton del mouse sobre el mapa
 contentFrame:SetScript("OnMouseDown", function()
+
+if IsAltKeyDown() then return end
+
     RM.state.pointerMouseBtn = true
     -- logica original de colocar iconos
     if arg1 ~= "LeftButton" then return end
@@ -145,9 +151,12 @@ contentFrame:SetScript("OnMouseDown", function()
     local mLeft = contentFrame:GetLeft()
     local mTop  = contentFrame:GetTop()
     local mW    = contentFrame:GetWidth()
-    local mH    = contentFrame:GetHeight()
+local mH    = contentFrame:GetHeight()
     local cx, cy = GetCursorPosition()
-    local scale = UIParent:GetScale()
+    
+    -- NUEVO: Lee la escala real y efectiva del mapa, no solo la de la interfaz global
+    local scale = contentFrame:GetEffectiveScale() 
+    
     cx = cx / scale
     cy = cy / scale
     local nx = (cx - mLeft) / mW
@@ -277,11 +286,6 @@ local POINTER_PATH_MAX       = 100
 local POINTER_PATH_TTL       = 2.0
 local POINTER_INACTIVITY_TTL = 10   -- segundos sin PTR para auto-liberar slot
 
--- Escala del lienzo (solo el canvas se reduce, UI permanece igual)
-local SCALE_STEPS = { 1.0, 0.8, 0.6 }
-local scaleIndex  = 1
-MF.currentScale   = 1.0
-
 
 
 -- -- Frame de actualizacion del puntero local -------------------
@@ -301,10 +305,15 @@ pointerUpdateFrame:SetScript("OnUpdate", function()
     local mH    = contentFrame:GetHeight()
     if not mLeft then return end
 
-    local cx, cy = GetCursorPosition()
-    local scale  = UIParent:GetScale()
+local cx, cy = GetCursorPosition()
+    
+    -- NUEVO: Aplica la misma corrección al puntero visual
+    local scale  = contentFrame:GetEffectiveScale() 
+    
     cx = cx / scale
     cy = cy / scale
+
+    -- Solo mostrar si el cursor esta dentro del mapa
 
     -- Solo mostrar si el cursor esta dentro del mapa
     if cx < mLeft or cx > mLeft + mW or cy < mTop - mH or cy > mTop then
@@ -332,65 +341,81 @@ function MF.GetPointerPos()
     return nil, nil
 end
 
--- Agregar un punto de "camino" remoto en el mapa
-function MF.AddRemotePointerDot(sender, colorName, px, py)
-    -- Registrar timestamp para deteccion de inactividad
-    lastPointerReceived[colorName] = GetTime()
-
-    if not remotePointerPaths[sender] then
-        remotePointerPaths[sender] = {}
-    end
-    local path = remotePointerPaths[sender]
-
-    -- Buscar color del slot
-    local sr, sg, sb = 0.8, 0.8, 0.8
-    for _, slot in ipairs(RM.state.pointerSlots) do
-        if slot.color == colorName then
-            sr, sg, sb = slot.r, slot.g, slot.b
-            break
-        end
-    end
-
-    -- Crear dot
-    local dot = CreateFrame("Frame", nil, contentFrame)
+-- Función auxiliar para crear físicamente el punto del rastro
+function MF.CreateShadowFrame(path, px, py, sr, sg, sb)
+    local dot = CreateFrame("Frame", nil, MF.contentFrame)
     dot:SetWidth(POINTER_SIZE)
     dot:SetHeight(POINTER_SIZE)
-    dot:SetFrameLevel(contentFrame:GetFrameLevel() + 3)
-    local mW = contentFrame:GetWidth()
-    local mH = contentFrame:GetHeight()
-    dot:SetPoint("CENTER", contentFrame, "TOPLEFT", px * mW, -py * mH)
+    dot:SetFrameLevel(MF.contentFrame:GetFrameLevel() + 3)
+    local mW = MF.contentFrame:GetWidth()
+    local mH = MF.contentFrame:GetHeight()
+    dot:SetPoint("CENTER", MF.contentFrame, "TOPLEFT", px * mW, -py * mH)
 
     local tex = dot:CreateTexture(nil, "ARTWORK")
     tex:SetAllPoints(dot)
     tex:SetTexture(RM.ICON_PATH .. "icon_circle_S")
-    tex:SetVertexColor(sr, sg, sb, 1.0)   -- relleno completo
+    tex:SetVertexColor(sr, sg, sb, 1.0)
 
-    dot.ttl      = POINTER_PATH_TTL
-    dot.elapsed  = 0
-
+    dot.ttl, dot.elapsed = POINTER_PATH_TTL, 0
     dot:SetScript("OnUpdate", function()
         dot.elapsed = dot.elapsed + arg1
         if dot.elapsed >= dot.ttl then
             dot:Hide()
             dot:SetScript("OnUpdate", nil)
         else
-            -- Fade out en el ultimo 30%
             local fade = dot.elapsed / dot.ttl
             if fade > 0.7 then
-                local a = (1 - fade) / 0.3
-                tex:SetVertexColor(sr, sg, sb, a)  -- 1.0 → 0
+                tex:SetVertexColor(sr, sg, sb, (1 - fade) / 0.3)
             end
         end
     end)
-
     table.insert(path, dot)
-
-    -- Si hay mas de 5, ocultar el mas antiguo
     if table.getn(path) > POINTER_PATH_MAX then
         local oldest = table.remove(path, 1)
         oldest:Hide()
         oldest:SetScript("OnUpdate", nil)
     end
+end
+
+-- Nueva versión con interpolación para rastro unido
+function MF.AddRemotePointerDot(sender, colorName, px, py)
+    lastPointerReceived[colorName] = GetTime()
+    
+    local slot = nil
+    for _, s in ipairs(RM.state.pointerSlots) do
+        if s.color == colorName then slot = s; break end
+    end
+    if not slot then return end
+
+    if not remotePointerPaths[sender] then remotePointerPaths[sender] = {} end
+    local path = remotePointerPaths[sender]
+
+    -- Lógica de Interpolación:
+    local stepSize = 0.012  -- Densidad del rastro (menor = más sólido)
+    local lastX = slot.lastX or px
+    local lastY = slot.lastY or py
+    
+    local dx = px - lastX
+    local dy = py - lastY
+    local dist = math.sqrt(dx*dx + dy*dy)
+
+    -- Si el movimiento es normal (menor al 25% del mapa), rellenamos el hueco
+    if dist > 0 and dist < 0.25 then
+        local steps = math.floor(dist / stepSize)
+        if steps > 0 then
+            for i = 1, steps do
+                local t = i / steps
+                MF.CreateShadowFrame(path, lastX + dx*t, lastY + dy*t, slot.r, slot.g, slot.b)
+            end
+        else
+            MF.CreateShadowFrame(path, px, py, slot.r, slot.g, slot.b)
+        end
+    else
+        MF.CreateShadowFrame(path, px, py, slot.r, slot.g, slot.b)
+    end
+
+    -- Guardamos la posición actual para el próximo cálculo
+    slot.lastX, slot.lastY = px, py
 end
 
 -- Mini consola dinamica con fade in/out entre mensajes idle
@@ -456,8 +481,10 @@ consoleUpdateFrame:SetScript("OnUpdate", function()
         for i, slot in ipairs(RM.state.pointerSlots) do
             if slot.owner and slot.owner ~= UnitName("player") then
                 local lastTime = lastPointerReceived[slot.color] or 0
-                if lastTime > 0 and (now - lastTime) > POINTER_INACTIVITY_TTL then
+if lastTime > 0 and (now - lastTime) > POINTER_INACTIVITY_TTL then
                     slot.owner = nil
+                    slot.lastX = nil -- Limpiar memoria de posición
+                    slot.lastY = nil -- Limpiar memoria de posición
                     lastPointerReceived[slot.color] = nil
                     changed = true
                     if RM.state.myPointerSlot == i then
@@ -535,36 +562,6 @@ local function buildPointerLocalFrame()
     localPointerFrame.tex = tex
     localPointerFrame:Hide()
 end
-
-function MF.ApplyScale(scale)
-    MF.currentScale = scale
-    local newMapW = MAP_W * scale
-    local newMapH = MAP_H * scale
-
-    contentFrame:SetWidth(newMapW)
-    contentFrame:SetHeight(newMapH)
-    toolbar:SetWidth(newMapW)
-    titleBar:SetWidth(newMapW + PANEL_W)
-    mainFrame:SetWidth(newMapW + PANEL_W)
-    mainFrame:SetHeight(newMapH + TOOLBAR_H + 30)
-
-    sidePanel:ClearAllPoints()
-    sidePanel:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", newMapW, -30)
-
-    -- Refrescar iconos (usan contentFrame:GetWidth/Height dinamicamente)
-    if RM.Icons and RM.Icons.RedrawAll then
-        RM.Icons.RedrawAll()
-    end
-
-    -- Reconstruir grid con nuevas dimensiones si estaba activo
-    if MF.RebuildGrid then MF.RebuildGrid() end
-
-    -- Limpiar trails del puntero (se reconstruyen solos con nuevos mensajes)
-    remotePointerPaths = {}
-end
-
-local function buildRoleButtons()
-
 
 local function buildRoleButtons()
     -- Label "Iconos de Rol" con fondo para que sea legible
@@ -1154,26 +1151,6 @@ local function buildToolbar()
     MF.consoleText:SetText("RaidMark v" .. RM.VERSION)
     MF.consoleText:SetTextColor(0.4, 0.7, 1, 1)
     consoleCurrentMsg = { text = "RaidMark v" .. RM.VERSION, r = 0.4, g = 0.7, b = 1.0 }
-    xOff = xOff + 168
-
-    -- [Escala] -- reduce solo el lienzo del mapa
-    local scaleBtn = makeToolbarBtn("Escala: 100%", 100)
-    scaleBtn.labelText:SetTextColor(0.9, 0.75, 0.3, 1)
-    scaleBtn:SetPoint("LEFT", toolbar, "LEFT", xOff, 0)
-    scaleBtn:SetScript("OnClick", function()
-        scaleIndex = math.mod(scaleIndex, table.getn(SCALE_STEPS)) + 1
-        local s = SCALE_STEPS[scaleIndex]
-        MF.ApplyScale(s)
-        local pct = math.floor(s * 100 + 0.5)
-        scaleBtn.labelText:SetText("Escala: " .. pct .. "%")
-        MF.ConsoleMsg("Escala del mapa: " .. pct .. "%", 0.9, 0.8, 0.3)
-    end)
-    scaleBtn:SetScript("OnEnter", function()
-        GameTooltip:SetOwner(scaleBtn, "ANCHOR_BOTTOM")
-        GameTooltip:SetText("Reducir el lienzo del mapa (100% / 80% / 60%)")
-        GameTooltip:Show()
-    end)
-    scaleBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
     -- [Grid] -- cuadricula local con sliders de opacidad y densidad
 
@@ -1190,26 +1167,23 @@ local function buildToolbar()
         for _, l in ipairs(gridLines) do l:Hide() end
         gridLines = {}
         if not gridActive then return end
-        local cW = contentFrame:GetWidth()
-        local cH = contentFrame:GetHeight()
         for i = 1, gridCols-1 do
             local l = contentFrame:CreateTexture(nil, "OVERLAY")
-            l:SetWidth(1); l:SetHeight(cH)
-            l:SetPoint("TOPLEFT", contentFrame, "TOPLEFT", cW/gridCols*i, 0)
+            l:SetWidth(1); l:SetHeight(MAP_H)
+            l:SetPoint("TOPLEFT", contentFrame, "TOPLEFT", MAP_W/gridCols*i, 0)
             l:SetTexture(1,1,1,gridAlpha)
             l:Show()
             table.insert(gridLines, l)
         end
         for i = 1, gridRows-1 do
             local l = contentFrame:CreateTexture(nil, "OVERLAY")
-            l:SetWidth(cW); l:SetHeight(1)
-            l:SetPoint("TOPLEFT", contentFrame, "TOPLEFT", 0, -cH/gridRows*i)
+            l:SetWidth(MAP_W); l:SetHeight(1)
+            l:SetPoint("TOPLEFT", contentFrame, "TOPLEFT", 0, -MAP_H/gridRows*i)
             l:SetTexture(1,1,1,gridAlpha)
             l:Show()
             table.insert(gridLines, l)
         end
     end
-    MF.RebuildGrid = buildGrid   -- exponer para MF.ApplyScale
 
     local gridBtn = makeToolbarBtn("Grid", 72)
     gridBtn.labelText:SetTextColor(0.6, 0.8, 1, 1)
@@ -1322,6 +1296,46 @@ function MF.UpdateAssistBtn()
         MF.assistBtn:SetBackdropBorderColor(0.5, 0.42, 0.22, 0.9)
     end
 end
+
+
+-- Crear el botón de Escala en la Toolbar
+MF.scaleBtn = CreateFrame("Button", nil, mainFrame)
+MF.scaleBtn:SetWidth(80)
+MF.scaleBtn:SetHeight(24)
+-- Ajusta el SetPoint según dónde estén tus otros botones (ej. al lado del botón de Assist)
+MF.scaleBtn:SetPoint("TOPRIGHT", mainFrame, "TOPRIGHT", -120, -12) 
+MF.scaleBtn:SetBackdrop({
+    bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    tile = true, tileSize = 16, edgeSize = 16,
+    insets = { left = 4, right = 4, top = 4, bottom = 4 }
+})
+MF.scaleBtn:SetBackdropColor(0.1, 0.1, 0.1, 0.9)
+
+MF.scaleBtn.labelText = MF.scaleBtn:CreateFontString(nil, "OVERLAY")
+BigFont(MF.scaleBtn.labelText, 12)
+MF.scaleBtn.labelText:SetPoint("CENTER", 0, 0)
+MF.scaleBtn.labelText:SetText("Scale: 100%")
+MF.scaleBtn.labelText:SetTextColor(1, 0.8, 0, 1)
+
+MF.scaleBtn:SetScript("OnClick", function()
+    -- Lógica cíclica: 1.0 -> 0.9 -> 0.8 -> 1.0
+    if RM.state.currentScale == 1.0 then
+        RM.state.currentScale = 0.9
+        MF.scaleBtn.labelText:SetText("Scale: 90%")
+    elseif RM.state.currentScale == 0.9 then
+        RM.state.currentScale = 0.8
+        MF.scaleBtn.labelText:SetText("Scale: 80%")
+    else
+        RM.state.currentScale = 1.0
+        MF.scaleBtn.labelText:SetText("Scale: 100%")
+    end
+    
+    -- Aplicar la escala a todo el marco principal
+    mainFrame:SetScale(RM.state.currentScale)
+end)
+
+
 
 -- -- Cargar textura del mapa --------------------------------------
 function MF.LoadMap(mapKey)

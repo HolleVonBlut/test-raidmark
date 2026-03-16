@@ -11,6 +11,15 @@ local IC = RM.Icons
 -- [iconId] = frame
 IC.activeFrames = {}
 
+
+local function GetScaledCursor()
+    local x, y = GetCursorPosition()
+    local s = RaidMarkMainFrame:GetEffectiveScale()
+    return x/s, y/s
+end
+
+
+
 -- -- Crear un frame de icono sobre el mapa -----------------------
 local function createIconFrame(iconId, iconType, x, y, label)
     local mapFrame  = RM.MapFrame.contentFrame
@@ -30,17 +39,16 @@ local function createIconFrame(iconId, iconType, x, y, label)
                x * mapW,
                -y * mapH)
 
-    -- Textura
+-- Textura
     local tex = f:CreateTexture(nil, "ARTWORK")
     tex:SetAllPoints(f)
     tex:SetTexture(texPath)
-    -- Aplicar coordenadas de atlas si es necesario
+
+    -- FIX: Aplicar el recorte para mostrar solo el icono (calavera, cruz, etc.)
     local tc = RM.ICON_TEXCOORD and RM.ICON_TEXCOORD[iconType]
     if tc then
         tex:SetTexCoord(tc[1], tc[2], tc[3], tc[4])
     end
-    f.tex = tex
-
     -- Label debajo del icono (para iconos de miembro)
     if label and label ~= "" then
         local fs = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -50,9 +58,12 @@ local function createIconFrame(iconId, iconType, x, y, label)
         f.labelText = fs
     end
 
-    -- Boton derecho para eliminar (solo si tiene permisos)
+-- Boton derecho para eliminar (solo si tiene permisos)
     f:RegisterForClicks("RightButtonUp")
     f:SetScript("OnClick", function()
+        -- SEGURO: Si ALT está presionado, ignoramos la interacción con el icono
+        if IsAltKeyDown() then return end
+        
         if RM.Permissions.CanPlace() then
             RM.Network.SendRemove(iconId)
             IC.ApplyRemove(iconId)
@@ -65,6 +76,9 @@ local function createIconFrame(iconId, iconType, x, y, label)
     f:RegisterForDrag("LeftButton")
 
     f:SetScript("OnDragStart", function()
+        -- SEGURO: Si ALT está presionado, evitamos que inicie el movimiento del icono
+        if IsAltKeyDown() then return end
+        
         if not RM.Permissions.CanPlace() then
             UIErrorsFrame:AddMessage("No tienes permisos. No eres RL ni Asistente.", 1, 0.3, 0.3, 1, 3)
             return

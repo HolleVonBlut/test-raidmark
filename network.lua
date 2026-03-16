@@ -8,7 +8,7 @@ RM.Network = {}
 local N = RM.Network
 
 -- -- Configuracion -----------------------------------------------
-local SEND_INTERVAL = 0.05   -- 20 msgs/seg maximo por icono arrastrado
+local SEND_INTERVAL = 0.033   -- 20 msgs/seg maximo por icono arrastrado
 local MSG_SEP       = ";"   -- separador de campos (NO usar | que WoW interpreta como color code)
 
 -- -- Cola de envio (throttling) ----------------------------------
@@ -276,11 +276,13 @@ function N.OnReceive(msg, channel, sender)
         end
 
     -- -- PTR_REL (alguien libero su slot) -----------------------
-    elseif cmd == "PTR_REL" then
+elseif cmd == "PTR_REL" then
         local colorName = parts[2]
         for i, slot in ipairs(RM.state.pointerSlots) do
             if slot.color == colorName and slot.owner == sender then
                 slot.owner = nil
+                slot.lastX = nil -- AÑADIR ESTA
+                slot.lastY = nil -- AÑADIR ESTA
                 if RM.MapFrame and RM.MapFrame.UpdatePointerSlotUI then
                     RM.MapFrame.UpdatePointerSlotUI()
                 end

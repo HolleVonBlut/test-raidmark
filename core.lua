@@ -7,8 +7,8 @@ RaidMark = {}
 local RM = RaidMark
 
 -- -- Version del protocolo de red --------------------------------
-RM.VERSION      = "0.59"
-RM.VERSION_NUM  = 2        -- numero entero para comparar (aumentar con cada release)
+RM.VERSION      = "0.60"
+RM.VERSION_NUM  = 3        -- numero entero para comparar (aumentar con cada release)
 RM.ADDON_PREFIX = "RaidMark"
 
 -- -- Estado global -----------------------------------------------
@@ -18,13 +18,14 @@ RM.state = {
     nextIconId    = 1,
     assistCanMove = false,
     mapVisible    = false,
+    currentScale  = 1.0,
 
     -- Puntero: slots de color { owner=nombre o nil, color="RED"|"BLUE"|"GREEN"|"YELLOW" }
-    pointerSlots = {
-        { color = "RED",    r=1,   g=0.1, b=0.1, owner=nil },  -- Slot 1: solo RL
-        { color = "BLUE",   r=0.3, g=0.5, b=1,   owner=nil },
-        { color = "GREEN",  r=0.2, g=0.9, b=0.2, owner=nil },
-        { color = "YELLOW", r=1,   g=0.9, b=0.1, owner=nil },
+pointerSlots = {
+        { color = "RED",    r=1,   g=0.1, b=0.1, owner=nil, lastX=nil, lastY=nil },
+        { color = "BLUE",   r=0.3, g=0.5, b=1,   owner=nil, lastX=nil, lastY=nil },
+        { color = "GREEN",  r=0.2, g=0.9, b=0.2, owner=nil, lastX=nil, lastY=nil },
+        { color = "YELLOW", r=1,   g=0.9, b=0.1, owner=nil, lastX=nil, lastY=nil },
     },
     myPointerSlot   = nil,    -- indice 1-4 que tiene este jugador, nil si ninguno
     pointerActive   = false,  -- si el modo puntero esta activo localmente
