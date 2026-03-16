@@ -966,16 +966,17 @@ local function buildToolbar()
     syncBtn.labelText:SetTextColor(0.4, 0.8, 1, 1)
     syncBtn:SetPoint("LEFT", toolbar, "LEFT", xOff, 0)
     syncBtn:SetScript("OnClick", function()
-        RM.Network.SendSyncRequest()
-        -- Si soy RL: limpiar slots de asistentes + refresh roster
         if RM.Permissions.IsRL() then
-            for i = 2, 4 do
-                RM.state.pointerSlots[i].owner = nil
-            end
-            RM.Network.SendPointerClear()
+            -- Rebuild fresco desde API de WoW
             RM.Roster.Rebuild()
-            MF.UpdatePointerSlotUI()
-            MF.ConsoleMsg("Slots PTR limpiados. Roster actualizado.", 0.4, 1, 0.5)
+            -- Enviar estado del mapa + permisos
+            RM.Network.SendSyncResponse()
+            -- Enviar roster actualizado
+            RM.Network.SendRosterSync()
+            DEFAULT_CHAT_FRAME:AddMessage("RaidMark: Roster y estado sincronizados.")
+        else
+            -- Si no soy RL, pedir al RL
+            RM.Network.SendSyncRequest()
         end
     end)
     syncBtn:SetScript("OnEnter", function()

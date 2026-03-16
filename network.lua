@@ -12,8 +12,6 @@ local SEND_INTERVAL = 0.033   -- 20 msgs/seg maximo por icono arrastrado
 local MSG_SEP       = ";"   -- separador de campos (NO usar | que WoW interpreta como color code)
 
 -- -- Cola de envio (throttling) ----------------------------------
--- Guardamos el ultimo mensaje por iconId para evitar flood
--- Solo enviamos el mas reciente si el timer lo permite
 local pendingMoves     = {}
 local timeSinceSend    = 0
 local throttleFrame    = CreateFrame("Frame", "RaidMarkThrottleFrame")
@@ -44,7 +42,6 @@ throttleFrame:SetScript("OnUpdate", function()
         if RM.state.pointerActive
            and not RM.state.pointerMouseBtn
            and RM.state.myPointerSlot then
-            -- Pedir posicion actual al MapFrame y enviarla
             if RM.MapFrame and RM.MapFrame.GetPointerPos then
                 local px, py = RM.MapFrame.GetPointerPos()
                 if px and py then
@@ -65,19 +62,17 @@ local function getChannel()
     elseif GetNumPartyMembers() > 0 then
         return "PARTY"
     end
-    -- Solo para pruebas en solitario
     return "WHISPER"
 end
 
 function N.SendRaw(msg)
     local channel = getChannel()
-    if channel == "WHISPER" then return end  -- sin grupo, no enviamos nada
+    if channel == "WHISPER" then return end
     SendAddonMessage(RM.ADDON_PREFIX, msg, channel)
 end
 
 -- -- API publica de envio -----------------------------------------
 
--- Colocar un icono nuevo
 function N.SendPlace(iconId, iconType, x, y, label)
     label = label or ""
     N.SendRaw("PLACE" .. MSG_SEP .. iconId .. MSG_SEP
@@ -87,43 +82,35 @@ function N.SendPlace(iconId, iconType, x, y, label)
                       .. label)
 end
 
--- Mover icono (throttled -- encola en vez de enviar directo)
 function N.SendMove(iconId, x, y)
     pendingMoves[iconId] = { x = x, y = y }
 end
 
--- Eliminar icono
 function N.SendRemove(iconId)
     pendingMoves[iconId] = nil
     N.SendRaw("REMOVE" .. MSG_SEP .. iconId)
 end
 
--- Limpiar todo
 function N.SendClear()
     pendingMoves = {}
     N.SendRaw("CLEAR")
 end
 
--- Cambiar mapa
 function N.SendMapChange(mapKey)
     N.SendRaw("MAP" .. MSG_SEP .. mapKey)
 end
 
--- Cambiar permisos de asistentes
--- Cambiar permisos de asistentes
 function N.SendPermissions(assistCanMove)
     local val = assistCanMove and "1" or "0"
     N.SendRaw("PERMS" .. MSG_SEP .. val)
 end
 
--- Broadcast de version al cargar
 function N.SendVersion()
     local channel = getChannel()
     if channel == "WHISPER" then return end
     N.SendRaw("VER" .. MSG_SEP .. tostring(RM.VERSION_NUM))
 end
 
--- Notificar que este jugador libero su slot de puntero
 function N.SendPointerRelease()
     if RM.state.myPointerSlot then
         local slot = RM.state.pointerSlots[RM.state.myPointerSlot]
@@ -131,32 +118,25 @@ function N.SendPointerRelease()
     end
 end
 
--- Notificar que este jugador tomo un slot de puntero
 function N.SendPointerClaim(colorName)
     N.SendRaw("PTR_CLAIM" .. MSG_SEP .. colorName)
 end
 
--- RL limpia todos los slots de asistentes
 function N.SendPointerClear()
     N.SendRaw("PTR_CLEAR")
 end
 
--- Pedir sincronizacion al RL (cualquiera puede pedirlo)
 function N.SendSyncRequest()
     N.SendRaw("SYNC_REQ")
     DEFAULT_CHAT_FRAME:AddMessage("RaidMark: Solicitando sincronizacion...")
 end
 
--- RL responde con estado completo a todo el raid
 function N.SendSyncResponse()
-    -- Primero el mapa actual
     if RM.state.currentMap then
         N.SendRaw("MAP" .. MSG_SEP .. RM.state.currentMap)
     end
-    -- Luego los permisos
     local val = RM.state.assistCanMove and "1" or "0"
     N.SendRaw("PERMS" .. MSG_SEP .. val)
-    -- Luego cada icono colocado
     for iconId, data in pairs(RM.state.placedIcons) do
         N.SendRaw("PLACE" .. MSG_SEP .. iconId .. MSG_SEP
                           .. data.iconType .. MSG_SEP
@@ -167,12 +147,33 @@ function N.SendSyncResponse()
     DEFAULT_CHAT_FRAME:AddMessage("RaidMark: Estado sincronizado enviado.")
 end
 
+-- NUEVA FUNCION: Enviar lista de miembros
+function N.SendRosterSync()
+    -- FORZAR rebuild fresco desde WoW antes de enviar
+    RM.Roster.Rebuild()
+    
+    local count = 0
+    for _ in pairs(RM.Roster.members) do count = count + 1 end
+    if count == 0 then return end
+    
+    local memberList = {}
+    for name, data in pairs(RM.Roster.members) do
+        table.insert(memberList, name .. ":" .. (data.classFile or "UNKNOWN") .. ":" .. (data.rank or 0))
+    end
+    
+    N.SendRaw("ROSTER_START" .. MSG_SEP .. count)
+    
+    for _, memberStr in ipairs(memberList) do
+        N.SendRaw("ROSTER_ADD" .. MSG_SEP .. memberStr)
+    end
+    
+    DEFAULT_CHAT_FRAME:AddMessage("RaidMark: Roster sincronizado (" .. count .. " miembros).")
+end
+
 -- -- Recepcion ---------------------------------------------------
 function N.OnReceive(msg, channel, sender)
-    -- Ignorar mensajes propios
     if sender == UnitName("player") then return end
 
-    -- Parsear primero para conocer el comando
     local parts = {}
     for part in string.gfind(msg, "([^" .. MSG_SEP .. "]+)") do
         table.insert(parts, part)
@@ -180,18 +181,57 @@ function N.OnReceive(msg, channel, sender)
     if not parts[1] then return end
     local cmd = parts[1]
 
-    -- SYNC_REQ: cualquier miembro puede pedirlo, solo el RL responde
+    -- SYNC_REQ
     if cmd == "SYNC_REQ" then
         if RM.Permissions.IsRL() then
             N.SendSyncResponse()
+            N.SendRosterSync()
         end
         return
     end
 
-    -- El resto de comandos requieren que el sender sea RL o Assist autorizado
+    -- ROSTER_START
+    if cmd == "ROSTER_START" then
+        RM.Roster.members = {}
+        return
+    end
+    
+  -- ROSTER_ADD
+    if cmd == "ROSTER_ADD" then
+        local memberStr = parts[2]
+        if memberStr then
+            -- Manual parse porque strsplit no existe en Lua 5.0 (Vanilla)
+            local name, classFile, rank
+            local firstColon = string.find(memberStr, ":")
+            local secondColon = string.find(memberStr, ":", firstColon + 1)
+            
+            if firstColon and secondColon then
+                name = string.sub(memberStr, 1, firstColon - 1)
+                classFile = string.sub(memberStr, firstColon + 1, secondColon - 1)
+                rank = string.sub(memberStr, secondColon + 1)
+            elseif firstColon then
+                name = string.sub(memberStr, 1, firstColon - 1)
+                classFile = string.sub(memberStr, firstColon + 1)
+                rank = "0"
+            else
+                name = memberStr
+                classFile = "UNKNOWN"
+                rank = "0"
+            end
+            
+            if name and name ~= "" then
+                RM.Roster.members[name] = {
+                    name = name,
+                    classFile = classFile or "UNKNOWN",
+                    rank = tonumber(rank) or 0,
+                }
+            end
+        end
+        return
+    end
+
     if not RM.Permissions.SenderCanControl(sender) then return end
 
-    -- -- PLACE ---------------------------------------------------
     if cmd == "PLACE" then
         local iconId   = tonumber(parts[2])
         local iconType = parts[3]
@@ -202,7 +242,6 @@ function N.OnReceive(msg, channel, sender)
             RM.Icons.ApplyPlace(iconId, iconType, x, y, label)
         end
 
-    -- -- MOVE ----------------------------------------------------
     elseif cmd == "MOVE" then
         local iconId = tonumber(parts[2])
         local x      = tonumber(parts[3])
@@ -211,19 +250,16 @@ function N.OnReceive(msg, channel, sender)
             RM.Icons.ApplyMove(iconId, x, y)
         end
 
-    -- -- REMOVE --------------------------------------------------
     elseif cmd == "REMOVE" then
         local iconId = tonumber(parts[2])
         if iconId then
             RM.Icons.ApplyRemove(iconId)
         end
 
-    -- -- CLEAR ---------------------------------------------------
     elseif cmd == "CLEAR" then
         if not RM.Permissions.SenderIsRL(sender) then return end
         RM.ClearAll()
 
-    -- -- MAP -----------------------------------------------------
     elseif cmd == "MAP" then
         if not RM.Permissions.SenderIsRL(sender) then return end
         local mapKey = parts[2]
@@ -232,14 +268,11 @@ function N.OnReceive(msg, channel, sender)
             RM.MapFrame.LoadMap(mapKey)
         end
 
-    -- -- PERMS ---------------------------------------------------
-        -- -- PERMS ---------------------------------------------------
     elseif cmd == "PERMS" then
         if not RM.Permissions.SenderIsRL(sender) then return end
         RM.state.assistCanMove = (parts[2] == "1")
         RM.MapFrame.UpdateAssistBtn()
 
-    -- -- VER (version check) ------------------------------------
     elseif cmd == "VER" then
         local theirVer = tonumber(parts[2]) or 0
         if theirVer > RM.VERSION_NUM then
@@ -251,7 +284,6 @@ function N.OnReceive(msg, channel, sender)
             end
         end
 
-    -- -- PTR (posicion de puntero remoto) -----------------------
     elseif cmd == "PTR" then
         local colorName = parts[2]
         local px        = tonumber(parts[3])
@@ -262,7 +294,6 @@ function N.OnReceive(msg, channel, sender)
             end
         end
 
-    -- -- PTR_CLAIM (alguien tomo un slot) -----------------------
     elseif cmd == "PTR_CLAIM" then
         local colorName = parts[2]
         for i, slot in ipairs(RM.state.pointerSlots) do
@@ -275,14 +306,13 @@ function N.OnReceive(msg, channel, sender)
             end
         end
 
-    -- -- PTR_REL (alguien libero su slot) -----------------------
-elseif cmd == "PTR_REL" then
+    elseif cmd == "PTR_REL" then
         local colorName = parts[2]
         for i, slot in ipairs(RM.state.pointerSlots) do
             if slot.color == colorName and slot.owner == sender then
                 slot.owner = nil
-                slot.lastX = nil -- AÑADIR ESTA
-                slot.lastY = nil -- AÑADIR ESTA
+                slot.lastX = nil
+                slot.lastY = nil
                 if RM.MapFrame and RM.MapFrame.UpdatePointerSlotUI then
                     RM.MapFrame.UpdatePointerSlotUI()
                 end
@@ -290,13 +320,11 @@ elseif cmd == "PTR_REL" then
             end
         end
 
-    -- -- PTR_CLEAR (RL limpia todos los slots de asistentes) ----
     elseif cmd == "PTR_CLEAR" then
         if not RM.Permissions.SenderIsRL(sender) then return end
         for i = 2, 4 do
             RM.state.pointerSlots[i].owner = nil
         end
-        -- Si yo era asistente con slot, forzar desactivacion
         local mySlot = RM.state.myPointerSlot
         if mySlot and mySlot > 1 then
             if RM.MapFrame and RM.MapFrame.SetPointerActive then
