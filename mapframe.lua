@@ -140,34 +140,51 @@ end)
 -- Pausar puntero cuando se presiona cualquier boton del mouse sobre el mapa
 contentFrame:SetScript("OnMouseDown", function()
 
-if IsAltKeyDown() then return end
-
-    RM.state.pointerMouseBtn = true
-    -- logica original de colocar iconos
-    if arg1 ~= "LeftButton" then return end
-    if not RM.Permissions.CanPlace() then return end
-    if not MF.selectedIconType then return end
+    if IsAltKeyDown() then return end
 
     local mLeft = contentFrame:GetLeft()
     local mTop  = contentFrame:GetTop()
     local mW    = contentFrame:GetWidth()
-local mH    = contentFrame:GetHeight()
+    local mH    = contentFrame:GetHeight()
+
     local cx, cy = GetCursorPosition()
-    
-    -- NUEVO: Lee la escala real y efectiva del mapa, no solo la de la interfaz global
-    local scale = contentFrame:GetEffectiveScale() 
-    
+    local scale = contentFrame:GetEffectiveScale()
     cx = cx / scale
     cy = cy / scale
+
     local nx = (cx - mLeft) / mW
     local ny = (mTop - cy)  / mH
+
     nx = math.max(0.01, math.min(0.99, nx))
     ny = math.max(0.01, math.min(0.99, ny))
+
+    -- =========================
+    -- MODO FLECHA DINAMICA
+    -- =========================
+    if MF.drawArrowMode then
+        if not MF.arrowStart then
+            MF.arrowStart = { x = nx, y = ny }
+        else
+            local id = RM.NextId()
+            RM.Icons.ApplyArrow(id, MF.arrowStart.x, MF.arrowStart.y, nx, ny)
+            MF.arrowStart = nil
+        end
+        return
+    end
+
+    -- ===== lógica original =====
+    RM.state.pointerMouseBtn = true
+
+    if arg1 ~= "LeftButton" then return end
+    if not RM.Permissions.CanPlace() then return end
+    if not MF.selectedIconType then return end
+
     local label = ""
     if MF.selectedMemberName then
         label = MF.selectedMemberName
         MF.selectedMemberName = nil
     end
+
     RM.Icons.PlaceNew(MF.selectedIconType, nx, ny, label)
 end)
 
@@ -277,6 +294,8 @@ local MEMBER_PANEL_Y_OFFSET = SKULLS_Y_START - (ICON_BTN+ICON_GAP)*3 - 20
 
 MF.selectedIconType   = nil
 MF.selectedMemberName = nil
+MF.drawArrowMode = false
+MF.arrowStart = nil
 MF.allButtons         = {}
 
 -- Puntero local y remoto

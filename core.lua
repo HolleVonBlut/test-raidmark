@@ -12,7 +12,8 @@ RM.ADDON_PREFIX = "RaidMark"
 
 RM.state = {
     currentMap    = nil,
-    placedIcons   = {},
+placedIcons   = {},
+placedArrows  = {},
     nextIconId    = 1,
     assistCanMove = false,
     mapVisible    = false,
@@ -31,6 +32,7 @@ myPointerSlot   = nil,
 
 RM.ICON_TYPES = {
     "TANK", "HEALER", "DPS", "DPS_MELEE", "CASTER", "ARROW",
+    "ARROW_DYNAMIC",
     "CIRCLE_S", "CIRCLE_M", "CIRCLE_L", "CIRCLE_XL",
     "SKULL1", "SKULL2", "SKULL3",
     "MARK_STAR", "MARK_CIRCLE", "MARK_DIAMOND", "MARK_TRIANGLE",
