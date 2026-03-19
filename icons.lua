@@ -140,6 +140,15 @@ local function createIconFrame(iconId, iconType, x, y, label)
     return f
 end
 
+-- -- Helper: ¿Está el jugador ya en el lienzo? --------------------
+function IC.IsPlayerPlaced(name)
+    if not name or name == "" then return false end
+    for _, data in pairs(RM.state.placedIcons) do
+        if data.label == name then return true end
+    end
+    return false
+end
+
 -- -- API: Aplicar colocacion (desde red o local) ------------------
 function IC.ApplyPlace(iconId, iconType, x, y, label)
     -- Guardar en estado
@@ -162,6 +171,11 @@ function IC.ApplyPlace(iconId, iconType, x, y, label)
             IC.activeFrames[iconId]:Hide()
         end
         IC.activeFrames[iconId] = createIconFrame(iconId, iconType, x, y, label)
+    end
+
+    -- Refrescar la lista lateral
+    if RM.MapFrame and RM.MapFrame.RebuildRosterButtons then
+        RM.MapFrame.RebuildRosterButtons()
     end
 end
 
@@ -192,8 +206,12 @@ function IC.ApplyRemove(iconId)
         f:Hide()
         IC.activeFrames[iconId] = nil
     end
-end
 
+    -- Refrescar la lista lateral
+    if RM.MapFrame and RM.MapFrame.RebuildRosterButtons then
+        RM.MapFrame.RebuildRosterButtons()
+    end
+end
 -- -- Limpiar todos los frames -------------------------------------
 function IC.ClearAllFrames()
     for id, f in pairs(IC.activeFrames) do
