@@ -1187,10 +1187,32 @@ local function buildToolbar()
     local gridRows   = 8
     local gridLines  = {}
 
+
+    -- Textura de fondo para C'thun exterior
+    local gridBgTexture = nil
+    local CTHEUN_GRID_MAP_KEY = "cthun_normal"
+
     local function buildGrid()
+        -- Limpiar líneas anteriores y fondo
         for _, l in ipairs(gridLines) do l:Hide() end
         gridLines = {}
+        if gridBgTexture then
+            gridBgTexture:Hide()
+            gridBgTexture = nil
+        end
         if not gridActive then return end
+
+        -- Si es C'thun exterior, mostrar imagen de guía en lugar de rejilla
+        if RM.state.currentMap == CTHEUN_GRID_MAP_KEY then
+            gridBgTexture = contentFrame:CreateTexture(nil, "OVERLAY")
+            gridBgTexture:SetAllPoints(contentFrame)
+            gridBgTexture:SetTexture("Interface\\AddOns\\RaidMark\\maps\\map_cthun_grid.tga")
+            gridBgTexture:SetAlpha(gridAlpha)
+            gridBgTexture:Show()
+            return
+        end
+
+        -- Rejilla normal
         for i = 1, gridCols-1 do
             local l = contentFrame:CreateTexture(nil, "OVERLAY")
             l:SetWidth(1); l:SetHeight(MAP_H)
@@ -1239,6 +1261,9 @@ local function buildToolbar()
     slAlpha:SetScript("OnValueChanged", function()
         gridAlpha = slAlpha:GetValue()
         for _, l in ipairs(gridLines) do l:SetTexture(1,1,1,gridAlpha) end
+        if gridBgTexture then
+            gridBgTexture:SetAlpha(gridAlpha)
+        end
     end)
 
     -- Label densidad
