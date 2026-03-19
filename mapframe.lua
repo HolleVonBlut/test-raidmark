@@ -1177,20 +1177,17 @@ local function buildToolbar()
     consoleCurrentMsg = { text = "RaidMark v" .. RM.VERSION, r = 0.4, g = 0.7, b = 1.0 }
 
     -- [Grid] -- cuadricula local con sliders de opacidad y densidad
-
-
-
-    -- [Grid] -- cuadricula local con sliders de opacidad y densidad
     local gridActive = false
     local gridAlpha  = 0.3
     local gridCols   = 12
     local gridRows   = 8
     local gridLines  = {}
 
-
     -- Textura de fondo para C'thun exterior
     local gridBgTexture = nil
     local CTHEUN_GRID_MAP_KEY = "cthun_normal"
+    local CTHUN_GRID_IMG_W = 1024
+    local CTHUN_GRID_IMG_H = 512
 
     local function buildGrid()
         -- Limpiar líneas anteriores y fondo
@@ -1202,15 +1199,29 @@ local function buildToolbar()
         end
         if not gridActive then return end
 
-        -- Si es C'thun exterior, mostrar imagen de guía en lugar de rejilla
+        -- Si es C'thun exterior, mostrar imagen de guía ENCIMA del mapa
         if RM.state.currentMap == CTHEUN_GRID_MAP_KEY then
             gridBgTexture = contentFrame:CreateTexture(nil, "OVERLAY")
             gridBgTexture:SetAllPoints(contentFrame)
-            gridBgTexture:SetTexture("Interface\\AddOns\\RaidMark\\maps\\map_cthun_grid.tga")
+            
+            local texPath = "Interface\\AddOns\\RaidMark\\maps\\map_cthun_grid"
+            gridBgTexture:SetTexture(texPath)
+            
+            -- Escalar imagen 1024x512 al lienzo 1365x768 sin distorsión
+            local canvasW = 1365
+            local canvasH = 768
+            local scale = math.min(canvasW / CTHUN_GRID_IMG_W, canvasH / CTHUN_GRID_IMG_H)
+            local newW = CTHUN_GRID_IMG_W * scale * 1.1
+            local newH = CTHUN_GRID_IMG_H * scale * 1.1
+            local u1 = (canvasW - newW) / canvasW / 2
+            local v1 = (canvasH - newH) / canvasH / 2
+            gridBgTexture:SetTexCoord(u1, 1-u1, v1, 1-v1)
+            
             gridBgTexture:SetAlpha(gridAlpha)
             gridBgTexture:Show()
             return
         end
+
 
         -- Rejilla normal
         for i = 1, gridCols-1 do
