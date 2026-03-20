@@ -1,78 +1,223 @@
-# RaidMark - Turtle WoW 1.12
+# RaidMark — Mesa de Tácticas para Raids
 
-**Autor:** Holle
-**Versión:** 0.61
-**Servidor:** Turtle WoW (WoW vanilla 1.12 - South Seas server)
+> Addon de World of Warcraft **1.12 / Vanilla** para servidores privados (Turtle WoW).  
+> Diseñado para Raid Leaders que necesitan comunicar estrategias visualmente en tiempo real.
+
+---
+
+## ✨ Características principales
+
+- 🗺️ **Mapa táctico interactivo** con 30+ encuentros de AQ40 y Naxxramas
+- 🔴 **Iconos de rol** arrastrables: Tank, Healer, DPS, Círculos, Marcas de raid, Calaveras
+- 🏹 **Flechas direccionales** (N/S/E/O/NE/NO/SE/SO) con stretch ajustable por rueda del mouse
+- 👥 **Panel de raiders** con asignación de roles por clase
+- 💾 **Sistema de escenas** — 40 slots locales (10 GrandSlots × 4) para guardar disposiciones
+- 🎯 **Modo de posicionamiento** — diseña en offline, sincroniza raiders reales con un click
+- 📡 **Sincronización en red** — todo el raid ve los cambios en tiempo real
+- 🔇 **Modo Offline** — diseña estrategias sin conexión al raid
 
 ---
 
-## 📝 Descripción
-**RaidMark** es una mesa de tácticas para raids que permite al **Raid Leader** colocar íconos sobre un mapa 2D táctico del encuentro. Estos se sincronizan en tiempo real con todos los miembros de la raid para coordinar movimientos y estrategias.
+## 📦 Instalación
 
-
-
-
-
-
-## 🛠 Instalación
-1. **Cierra el juego** completamente.
-2. Copia la carpeta `RaidMark` dentro de:  
-   `World of Warcraft\Interface\AddOns\RaidMark\`.
-3. **(Opcional):** Puedes usar el link de GitHub e instalarlo desde el launcher de Turtle WoW.
-
-## 🚀 Primeros Pasos
-
-### Abrir el Addon
-Escribe en el chat el comando:  
-`/rm`  
-Esto abre o cierra la ventana de RaidMark, la cual puedes mover libremente.
-
-### Seleccionar el Encuentro
-Usa el menú desplegable en la esquina superior izquierda de la toolbar para elegir el mapa.  
-**Mapas disponibles:**
-* todo AQ40
-* todo Naxxramas
-
-## 📍 Gestión de Íconos
-El panel derecho organiza los íconos en tres categorías principales:
-
-| Categoría | Íconos Incluidos |
-| :--- | :--- |
-| **Roles** | Tank, Healer, DPS ranged, DPS melee, Caster y Flecha. |
-| **Áreas** | Círculos de tamaños S, M, L y XL. |
-| **Miembros** | Listado de miembros con nombre y color de clase. |
-
-* **Colocar:** Haz clic en un ícono del panel y luego haz clic en el mapa donde quieras situarlo.
-* **Mover:** Arrastra cualquier ícono directamente en el mapa para actualizar la posición en tiempo real.
-* **Eliminar:** Haz clic derecho sobre el ícono que desees quitar.
-
-## ⚙️ Toolbar y Comandos de Chat
-
-### Botones de la Toolbar
-* `[ v Encounter ]`: Selección de mapa del encuentro.
-* `[ Limpiar ]`: Elimina todos los iconos del mapa de una sola vez.
-* `[ Punteros]`: gestiona punteros por RED utiles para explicaciones, El RL tiene asegurado un puntero(rojo), los demas asistentes podran usar 3 punteros adicionales.
-* `[ Sync ]`: Solicita al RL el estado actual del mapa (útil al reconectar) tambien sirve (solo si eres RL) para limpiar todos los slots de punteros de los asistentes.
-* `[ Assist: ON/OFF ]`: Habilita que los asistentes puedan mover íconos.
-* `[ Grid ]`: Habilita una rejilla de manera local para la facil ubicacion de iconos en el lienzo.
-* `[ Scale ]`: Boton ciclico para alternar entre "100%, 90%, 80% de escala" útil para jugadores con resoluciones menores a 1080p.
-
-### Comandos de Chat
-* `/rm`: Abre o cierra la ventana.
-
-## 🛡 Sistema de Permisos y Red
-* **Raid Leader:** Control total sobre mapas, iconos y permisos.
-* **Asistente:** Puede mover íconos solo si el RL activó la opción "Assist: ON".
-* **Miembro:** Solo visualización; no puede interactuar con el mapa.
-
-La transmisión se realiza por el canal de raid/party con un sistema de seguridad para evitar lag.
-
-## IMPORTANTE: El puntero funciona por red a travez de interpolacion, requiere que no muevas tan rapido el mouse o los receptores veran "saltos" en el rastro del puntero.
-
-## ❓ Solución de Problemas
-* **Mapas en negro:** Borra el archivo `Cache.md5` dentro de la carpeta de tu personaje.
-* **No funciona:** El addon requiere estar en un grupo o raid para sincronizar y ser usado.
-* **No aparece en la lista:** Verifica que la carpeta se llame exactamente `RaidMark`.
+1. Descarga el `.zip` desde [Releases](../../releases)
+2. Extrae la carpeta `RaidMark` en:  
+   `World of Warcraft\Interface\AddOns\`
+3. Reinicia el juego o escribe `/reload`
+4. Abre con `/rm` o `/raidmark`
 
 ---
-*RaidMark v0.23 - Hecho con ❤️ para raiders en Turtle WoW*
+
+## 🎮 Uso básico
+
+### Abrir el mapa
+```
+/rm
+```
+
+### Seleccionar un encuentro
+Haz click en el botón **▼ Encounter** (esquina superior izquierda del mapa).
+
+### Colocar iconos
+1. Selecciona un ícono del panel derecho
+2. Haz click izquierdo en el mapa
+3. Arrastra para moverlo · Click derecho para eliminar
+
+### Flechas direccionales
+- Selecciona una flecha del **dropdown** del botón de flecha
+- **Rueda del mouse** sobre el cuadrado verde central = estirar/encoger
+- Solo el RL y Assists pueden estirar flechas
+- Disponible en **Rojo**, **Blanco** y **Amarillo**
+
+---
+
+## 👥 Roles y permisos
+
+| Rol | Permisos |
+|-----|----------|
+| **Raid Leader (RL)** | Todo: colocar, mover, borrar, sync, offline, escenas |
+| **Assist** | Colocar y mover iconos |
+| **Raider** | Solo ver |
+
+Activa permisos de Assist con el botón **Assist: ON/OFF** en la toolbar.
+
+> **Nota:** Al entrar en Modo Offline, el Assist se desactiva automáticamente. Al salir, se restaura al estado que tenía antes.
+
+---
+
+## 💾 Sistema de Escenas
+
+Guarda hasta **40 disposiciones** del lienzo organizadas en:
+- **4 slots rápidos** (botones `1 2 3 4`)
+- **10 GrandSlots** (dropdown `GS1 ▼`)
+
+### Colores de los slots
+- ⬜ **Gris** — vacío
+- 🔴 **Rojo** — seleccionado, listo para guardar
+- 🟡 **Amarillo** — tiene contenido guardado
+- 🟢 **Verde** — mapa de posicionamiento (contiene posiciones de raid)
+
+### Guardar una escena
+1. Selecciona un slot (`1`–`4`) → se pone rojo
+2. Presiona **[S]** (disquete)
+
+### Cargar una escena
+- Click en slot amarillo o verde → se pone naranja
+- Click de nuevo → se carga al lienzo y se broadcastea al raid
+
+> **Importante:** Los slots verdes (posicionamiento) cargan los cuadritos de posición **solo localmente** — el raid no los ve hasta que el RL presiona **Sync P**.
+
+---
+
+## 🎯 Modo de Posicionamiento
+
+Diseña dónde va cada rol *antes* del pull, sin necesidad de estar en raid.
+
+### Crear un mapa de posicionamiento
+
+1. Presiona **M Offline** → aparece advertencia → presiona de nuevo para confirmar
+2. En el panel de raiders verás los iconos de rol:
+   - 🔵 **Tank** · 🟢 **Healer** · 🔴 **DPS Melee** · 🟠 **DPS Rang** · ⬜ **Edit**
+3. Coloca hasta **40 posiciones** en el mapa
+4. Guarda en un slot → el slot se pinta **verde**
+5. Presiona **M Offline** para salir
+
+> Si necesitas ajustar posiciones después, puedes volver al Modo Offline, editar el slot verde y salir — el cambio queda guardado para el siguiente Sync P.
+
+### Usar el mapa en raid
+
+1. **Carga el slot verde** → los cuadritos de posición aparecen en el lienzo *(solo el RL los ve)*
+2. Presiona **Sync P** → el addon coloca cada raider en su posición correspondiente
+
+**Reglas del Sync P:**
+- Cada cuadrito = exactamente un raider
+- Si hay más raiders del mismo rol que cuadritos, los sobrantes no se colocan
+- Si hay más cuadritos que raiders, los cuadritos sobrantes permanecen visibles
+- **Se puede presionar Sync P múltiples veces** sin riesgo de duplicados — por ejemplo cuando se conectan raiders tarde. Cada vez limpia las posiciones anteriores y recoloca desde cero
+- Los cuadritos de posición siempre quedan visualmente *debajo* de los raiders reales
+- Los cuadritos solo desaparecen al presionar **Limpiar**
+
+> **Flujo recomendado para raids en progreso:**
+> 1. Carga el slot verde una vez al inicio
+> 2. A medida que llegan raiders y se asignan roles, presiona Sync P cuantas veces necesites
+> 3. Si quieres reorganizar posiciones: entra a Modo Offline → edita el slot → sal → vuelve a cargar el slot → Sync P
+
+---
+
+## 🤖 Auto-asignación de roles
+
+El RL puede asignar roles automáticamente via chat de raid (`/raid`).
+
+> **Los roles asignados se guardan entre sesiones.** Sobreviven a `/reload`, al Modo Offline y al cierre del juego. Si un raider cambia de rol (respondiendo a un nuevo auto-assign), el nuevo rol sobreescribe el anterior sin afectar a los demás.
+
+### Botones individuales (10 segundos)
+
+Presiona **Healer**, **DD M**, **DD R** o **Tank**.  
+Sale en `/rw`:  
+*"Todos los Healers escriban [1] en /raid — tienes 10 segundos"*
+
+Los últimos **3 segundos** se spamea la cuenta regresiva.  
+Solo escucha el canal `/raid`.
+
+### Auto-Total (20 segundos)
+
+Pide todos los roles a la vez:
+
+*"Escribe tu número: 1=Healer // 2=DPS Melee // 3=DPS Rango // 4=Tank"*
+
+Al terminar reporta cuántos del total respondieron.  
+Las respuestas **sobreescriben** el rol anterior raider por raider.
+
+| Número | Rol |
+|--------|-----|
+| `1` | Healer |
+| `2` | DPS Melee |
+| `3` | DPS a Rango |
+| `4` | Tank |
+
+---
+
+## 🔇 Modo Offline
+
+Permite diseñar estrategias sin afectar al raid ni requerir estar en grupo.
+
+**Al entrar:**
+- Se limpia el lienzo (aviso previo en el box informativo)
+- Si hay Assist activo, se desactiva automáticamente
+- Toda comunicación de red queda bloqueada
+- El box muestra `[ MODO OFFLINE ]` en rojo periódicamente
+
+**Al salir:**
+- Se limpia el lienzo nuevamente
+- El Assist se restaura si estaba activo antes
+
+**Funciones bloqueadas en Modo Offline:**
+- Sync · Auto-assign · Auto-Total · Sync P
+
+**Funciones disponibles:**
+- Sistema de escenas (guardar/cargar slots) · Grid · Iconos · Flechas · Panel de raiders (muestra iconos de rol en lugar de raiders reales)
+
+---
+
+## 🗺️ Encuentros incluidos
+
+**AQ40:** Twin Emperors · C'Thun Exterior · C'Thun Estómago · Skeram · Ouro · Huhuran · Viscidus · Fankriss · Sartura · Bug Trio
+
+**Naxxramas:** Anub'Rekhan · Faerlina · Maexxna · Noth · Heigan · Loatheb · Razuvious · Gothik · 4 Horsemen · Patchwerk · Grobbulus · Gluth · Thaddius · Sapphiron · Kel'Thuzad
+
+---
+
+## ⚙️ Comandos slash
+
+| Comando | Función |
+|---------|---------|
+| `/rm` | Abrir / cerrar el mapa |
+| `/rm clear` | Limpiar todos los iconos |
+| `/rm map <key>` | Cambiar mapa (ej: `twin_emperors`) |
+| `/rm assist on/off` | Habilitar/deshabilitar permisos de Assist |
+
+---
+
+## 🔧 Requisitos
+
+- World of Warcraft **1.12.1** (Vanilla)
+- Servidor: **Turtle WoW** u otro servidor 1.12 compatible
+- Se requiere ser **Raid Leader** para la mayoría de funciones
+
+---
+
+## 📝 Notas técnicas
+
+- Protocolo de red propio via `SendAddonMessage` con separador `;`
+- SavedVariables: `RaidMarkDB` (configuración + roles) · `RaidMarkSceneDB` (escenas)
+- Los roles de raid persisten en disco — sobreviven a `/reload` y reinicios
+- Compatible con grupos de party (no solo raids)
+- Los iconos de flechas usan TGAs personalizados de 256×256
+- Límite de 40 posiciones de rol en Modo Offline por sesión
+
+---
+
+## 👤 Autor
+
+**Holle** — Turtle WoW  
+*"By Holle - South Seas Server"*
